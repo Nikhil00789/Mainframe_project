@@ -1,0 +1,12 @@
+       01 TI001-PS-REC.
+           05 TI001-COLLECTIN PIC X(10).
+           05 FILLER          PIC X(01).
+           05 TI001-APPL-ID   PIC X(10).
+           05 FILLER          PIC X(01).
+           05 TI001-LOAN-ID   PIC X(02).
+           05 FILLER          PIC X(01).
+           05 TI001-AMT-PAID  PIC 9(07).9(02).
+           05 FILLER          PIC X(01).
+           05 TI001-PAID-DATE PIC X(10).
+           05 FILLER          PIC X(36).
+

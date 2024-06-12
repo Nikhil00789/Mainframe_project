@@ -1,0 +1,263 @@
+      ***************************************************************
+      *                ****REPORT****                               *
+      *    CREATING REPORT FOR WHOSE CURRENT BALANCE AMOUNT IS 1000 *
+      ***************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. REPCOB.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+                   SELECT TO001-PS ASSIGN TO DD1
+                   ORGANIZATION IS SEQUENTIAL
+                   ACCESS IS SEQUENTIAL
+                   FILE STATUS IS WS-FST-TO001.
+       DATA DIVISION.
+       FILE SECTION.
+       FD TO001-PS.
+      *DECLARING REPORT FILE LAYOUT*
+       01 TO001-PS-REC   PIC X(80).
+       WORKING-STORAGE SECTION.
+      *DECLARING FILE STATUS VARIABLES
+       01 WS-FILE-STATUS.
+          05 WS-FST-TO001 PIC 9(2).
+             88  C05-TO001-SUC   VALUE 00.
+             88  C05-TO001-EOF   VALUE 10.
+          05 WS-ERR-MSG.
+             10  WS-ERR-LEN  PIC S9(4) COMP VALUE 800.
+             10  WS-ERR-TEXT PIC X(80) OCCURS 10 TIMES.
+          05 WS-LRECL        PIC S9(09) COMP VALUE 80.
+          05 WS-COUNTER.
+             10 WS-READ-COUNTER PIC 9(2) VALUE 0.
+             10 WS-LINE-COUNTER PIC 9(2) VALUE 0.
+      ****************************************************************
+       01 WS-DASH-LINE.
+          05 FILLER          PIC X(05) VALUE SPACES.
+          05 FILLER          PIC X(12) VALUE ALL '-'.
+          05 FILLER          PIC X(03) VALUE SPACES.
+          05 FILLER          PIC X(20) VALUE ALL '-'.
+          05 FILLER          PIC X(05) VALUE SPACES.
+          05 FILLER          PIC X(10) VALUE ALL '-'.
+          05 FILLER          PIC X(04) VALUE SPACES.
+          05 FILLER          PIC X(10) VALUE ALL '-'.
+          05 FILLER          PIC X(11) VALUE SPACES.
+      *****************************************************************
+       01 WS-DETAIL-LINE.
+          05 FILLER           PIC X(05) VALUE SPACES.
+          05 WS-APPLICANT-ID  PIC X(10).
+          05 FILLER           PIC X(05) VALUE SPACES.
+          05 WS-NAME          PIC X(20).
+          05 FILLER           PIC X(05) VALUE SPACES.
+          05 WS-CUR-AMT       PIC 9(7).9(2).
+          05 FILLER           PIC X(04) VALUE SPACES.
+          05 WS-AMT-PAID   PIC 9(7).9(2).
+          05 FILLER           PIC X(11).
+      *****************************************************************
+       01 WS-TRAILER-PAGE-LINE.
+          05 FILLER           PIC X(15) VALUE SPACES.
+          05 FILLER           PIC X(15) VALUE ALL '*'.
+          05 WS-LINE-NAME     PIC X(11) VALUE 'END OF PAGE'.
+          05 FILLER           PIC X(15) VALUE ALL '*'.
+          05 FILLER           PIC X(29) VALUE SPACES.
+       01 WS-TRAILER-LINE.
+          05 FILLER           PIC X(15) VALUE SPACES.
+          05 FILLER           PIC X(15) VALUE ALL '*'.
+          05 WS-LINE-NAME     PIC X(13) VALUE 'END OF REPORT'.
+          05 FILLER           PIC X(15) VALUE ALL '*'.
+          05 FILLER           PIC X(32) VALUE SPACES.
+      *****************************************************************
+       01 WS-TITLE.
+          05 FILLER           PIC X(05) VALUE SPACES.
+          05 FILLER           PIC X(23) VALUE ALL '*'.
+          05 TITTLE           PIC X(23) VALUE 'PAYMENT DETAIL REPORT'.
+          05 FILLER           PIC X(23) VALUE ALL '*'.
+          05 FILLER           PIC X(06) VALUE SPACES.
+       01 WS-HEADER-LINE.
+          05 FILLER           PIC X(05) VALUE SPACES.
+          05 FILLER           PIC X(12) VALUE 'APPLICANT-ID'.
+          05 FILLER           PIC X(05) VALUE SPACES.
+          05 FILLER           PIC X(04) VALUE 'NAME'.
+          05 FILLER           PIC X(17) VALUE SPACES.
+          05 FILLER           PIC X(15) VALUE 'CURRENT BAL AMT'.
+          05 FILLER           PIC X(02) VALUE SPACES.
+          05 FILLER           PIC X(08) VALUE 'AMT PAID'.
+      *****************************************************************
+       01 WS-HEADER-01.
+          05 DATE-NAME        PIC X(05) VALUE 'DATE:'.
+          05 WS-DATE          PIC X(08).
+          05 FILLER           PIC X(41) VALUE SPACES.
+          05 PAGE-1           PIC X(05) VALUE 'PAGE:'.
+          05 PAGE-NUM         PIC 9(02) VALUE 01.
+          05 FILLER           PIC X(19) VALUE SPACES.
+       01 WS-HEADER-02.
+          05 TIME-NAME        PIC X(05) VALUE 'TIME:'.
+          05 WS-TIME.
+             10 WS-HH         PIC 9(02).
+             10 FILLER        PIC X(01) VALUE ':'.
+             10 WS-MM         PIC 9(02).
+             10 FILLER        PIC X(01) VALUE ':'.
+             10 WS-SS         PIC 9(02).
+          05 FILLER           PIC X(41) VALUE SPACES.
+          05 REP-ID           PIC X(10) VALUE 'REPORT ID:'.
+          05 REP-1            PIC X(04) VALUE '1004'.
+          05 FILLER           PIC X(12) VALUE SPACES.
+      *****************************************************************
+       01 WS-EMPTY.
+          05 FILLER PIC X(80) VALUE SPACES.
+      ***************************************************************
+      *     INCLUDING SQLCA AND DCLGEN MEMBERS                      *
+      ***************************************************************
+            EXEC SQL
+            INCLUDE SQLCA
+            END-EXEC.
+            EXEC SQL
+            INCLUDE APPLIDB
+            END-EXEC.
+            EXEC SQL
+            INCLUDE PAYDB
+            END-EXEC.
+      ***************************************************************
+      *            DECLARING CURSOR                                 *
+      ***************************************************************
+            EXEC SQL
+               DECLARE CUR1 CURSOR
+               FOR SELECT P.APPLICANT_ID, P.CURRENT_BALANCE_AMOUNT,
+                    P.AMOUNT_PAID, A.APPLICANT_NAME
+                    FROM PAY_DB P INNER JOIN APP_DB A
+                   ON P.APPLICANT_ID = A.APPLICANT_ID
+                   WHERE
+                      P.CURRENT_BALANCE_AMOUNT < 1000
+            END-EXEC.
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+           PERFORM 1000-INIT-PARA
+              THRU 1000-INIT-PARA-EXIT
+           PERFORM 3000-PROC-PARA
+              THRU 3000-PROC-PARA-EXIT
+           PERFORM 9000-TERM-PARA
+              THRU 9000-TERM-PARA-EXIT
+           .
+       1000-INIT-PARA.
+           CONTINUE.
+       1000-INIT-PARA-EXIT.
+           EXIT.
+       3000-PROC-PARA.
+            PERFORM 3100-OPEN-PARA
+               THRU 3100-OPEN-PARA-EXIT
+            PERFORM 3200-FETCH-PARA
+               THRU 3200-FETCH-PARA-EXIT
+               UNTIL SQLCODE = 100
+            PERFORM 3300-CLOSE-PARA
+               THRU 3300-CLOSE-PARA-EXIT
+           .
+       3000-PROC-PARA-EXIT.
+           EXIT.
+       9000-TERM-PARA.
+           STOP RUN.
+       9000-TERM-PARA-EXIT.
+           EXIT.
+       3100-OPEN-PARA.
+      ******OPENING FILE IN OUTPUT MODE******
+           OPEN OUTPUT TO001-PS
+           EVALUATE TRUE
+           WHEN C05-TO001-SUC
+            WRITE TO001-PS-REC FROM WS-TITLE
+                DISPLAY "OPENED OUTFILE"
+           WHEN OTHER
+                DISPLAY "OPEN FAILED" WS-FST-TO001
+                PERFORM 9000-TERM-PARA
+           END-EVALUATE
+      ******OPENING CURSOR*******
+           EXEC SQL
+                OPEN CUR1
+           END-EXEC
+           EVALUATE TRUE
+           WHEN SQLCODE = 0
+                DISPLAY "OPENED CUR1"
+           WHEN OTHER
+                DISPLAY "FAILED" SQLCODE
+           CALL 'DSNTIAR' USING WS-ERR-MSG WS-LRECL
+                DISPLAY WS-ERR-MSG
+           END-EVALUATE
+           .
+       3100-OPEN-PARA-EXIT.
+           EXIT.
+       3200-FETCH-PARA.
+           INITIALIZE DCLPAY-DB
+           INITIALIZE DCLAPPLICANT-DB
+           MOVE SPACES TO TO001-PS-REC
+      ******FETCHING RECORDS***********
+           EXEC SQL
+                FETCH CUR1 INTO
+                  :HV-APPLICANT-ID
+                 ,:HV-CURRENT-BALANCE-AMOUNT
+                 ,:HV-AMOUNT-PAID
+                 ,:CV-APPLICANT-NAME
+           END-EXEC
+           EVALUATE TRUE
+           WHEN SQLCODE = 0
+                ADD 1 TO WS-LINE-COUNTER
+                ADD 1 TO WS-READ-COUNTER
+                DISPLAY "CURSOR FETCH SUCESSFUL"
+           PERFORM 3210-WRITE-PARA
+              THRU 3210-WRITE-PARA-EXIT
+           WHEN SQLCODE = 100
+                DISPLAY "END OF TABLE"
+           PERFORM 3220-TRAILER-WRITE-PARA
+              THRU 3220-TRAILER-WRITE-PARA-EXIT
+           WHEN OTHER
+                DISPLAY "FAILED FETCH" SQLCODE
+           CALL 'DSNTIAR' USING WS-ERR-MSG WS-LRECL
+                DISPLAY WS-ERR-MSG
+           .
+       3200-FETCH-PARA-EXIT.
+           EXIT.
+       3210-WRITE-PARA.
+           IF WS-LINE-COUNTER = 1
+            WRITE TO001-PS-REC FROM WS-EMPTY
+      *****MOVING CURRENT DATE FUNCTION INTO VARIABLES*********
+            MOVE FUNCTION CURRENT-DATE(1:8) TO WS-DATE
+            MOVE FUNCTION CURRENT-DATE(9:2) TO WS-HH
+            MOVE FUNCTION CURRENT-DATE(11:2) TO WS-MM
+            MOVE FUNCTION CURRENT-DATE(13:2) TO WS-SS
+      ******WRITING HEADER******
+            WRITE TO001-PS-REC FROM WS-HEADER-01
+            WRITE TO001-PS-REC FROM WS-HEADER-02
+            WRITE TO001-PS-REC FROM WS-EMPTY
+            WRITE TO001-PS-REC FROM WS-HEADER-LINE
+            WRITE TO001-PS-REC FROM WS-DASH-LINE
+           END-IF
+      ****MOVING DATA FROM TABLE TO VARIABLES****
+            MOVE HV-APPLICANT-ID        TO WS-APPLICANT-ID
+            MOVE CV-APPLICANT-NAME-TEXT TO WS-NAME
+            MOVE LENGTH OF CV-APPLICANT-NAME-TEXT TO
+                          CV-APPLICANT-NAME-LEN
+            MOVE HV-CURRENT-BALANCE-AMOUNT  TO WS-CUR-AMT
+            MOVE HV-AMOUNT-PAID         TO WS-AMT-PAID
+      *****WRITING RECORDS INTO REPORT*****
+            WRITE TO001-PS-REC FROM WS-DETAIL-LINE
+           IF WS-LINE-COUNTER >= 3
+              ADD 1 TO PAGE-NUM
+              MOVE ZEROS TO WS-LINE-COUNTER
+              WRITE TO001-PS-REC FROM WS-EMPTY
+              WRITE TO001-PS-REC FROM WS-TRAILER-PAGE-LINE
+           .
+       3210-WRITE-PARA-EXIT.
+           EXIT.
+       3220-TRAILER-WRITE-PARA.
+           WRITE TO001-PS-REC FROM  WS-EMPTY
+           WRITE TO001-PS-REC FROM WS-TRAILER-PAGE-LINE
+           WRITE TO001-PS-REC FROM  WS-TRAILER-LINE
+           .
+       3220-TRAILER-WRITE-PARA-EXIT.
+           EXIT.
+       3300-CLOSE-PARA.
+      ************CLOSING CURSOR*******************
+           EXEC SQL
+             CLOSE CUR1
+           END-EXEC
+      ************CLOSING OUTPUT FILE**************
+           CLOSE TO001-PS
+           .
+       3300-CLOSE-PARA-EXIT.
+           EXIT.
+

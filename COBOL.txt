@@ -1,0 +1,294 @@
+      ****************************************************
+      *            COBOL PROGRAM                         *
+      *          UPDATING CURRENT BALANCE                *
+      *          LOADING RECORDS INTO CSV FILE           *
+      ****************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COBOL.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT TI001-PS ASSIGN TO DD1
+           ORGANIZATION IS SEQUENTIAL
+           ACCESS IS SEQUENTIAL
+           FILE STATUS IS WS-FST-TI001
+           .
+           SELECT TO001-PS ASSIGN TO DD2
+           ORGANIZATION IS SEQUENTIAL
+           ACCESS IS SEQUENTIAL
+           FILE STATUS IS WS-FST-TO001
+           .
+       DATA DIVISION.
+       FILE SECTION.
+      *********FILE LAYOUT DECLARATION FOR PAYMENT FILE********
+       FD TI001-PS.
+       COPY INPLOUT.
+      ********FILE LAYOUT DECLARATION FOR CSV FILE**************
+       FD TO001-PS.
+       01 TO001-PS-REC PIC X(80).
+       WORKING-STORAGE SECTION.
+       01 WS-VARS.
+      *   VARIABLE DECLARATION FOR INPUT FILE STATUS
+           05 WS-RPRT-CRT-DT PIC X(10).
+           05 WS-APPLI-ID  PIC X(10).
+           05 WS-LOAN-ID   PIC X(02).
+           05 WS-LOAN-TYPE PIC X(10).
+           05 WS-DUE-DATE  PIC X(10).
+           05 WS-MN-REPAY-AMT PIC 9(07).9(02).
+          05 WS-DATES.
+             10 WS-PS-DATES PIC 9(08).
+             10 WS-DB-DATES PIC 9(08).
+             10 WS-PS-DATE  PIC 9(03) VALUE 0.
+             10 WS-DB-DATE  PIC 9(03) VALUE 0.
+             10 WS-DATE-DIFF PIC 9(03) VALUE 0.
+             10 WS-CURR-DATE PIC X(08).
+          05 WS-REP-DATE.
+             10 WS-CURR-YEAR PIC X(04).
+             10 WS-CURR-MONTH PIC X(02).
+             10 WS-CURR-DAY PIC X(02).
+           05 WS-FST-TO001 PIC 9(2) VALUE 00.
+              88 WS-FST2-SUCC  VALUE 00.
+           05 WS-FST-TI001 PIC 9(2).
+              88 WS-FST-SUCC  VALUE 00.
+              88 WS-FST-EOPS  VALUE 10.
+           05 WS-COUNTER   PIC 9(2) VALUE 00.
+           05 WS-ERR-MSG.
+              10 WS-ERR-LEN   PIC S9(04) COMP VALUE 800.
+              10 WS-ERR-TEXT  PIC X(80) OCCURS 10 TIMES.
+           05 WS-LRECL        PIC S9(09) COMP VALUE 80.
+      **********************************************************
+      *       INCLUDING SQLCA AND DCLLOAN                      *
+      **********************************************************
+           EXEC SQL
+            INCLUDE SQLCA
+           END-EXEC
+           EXEC SQL
+            INCLUDE LOANDB
+           END-EXEC
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+           PERFORM 1000-INIT-PARA
+              THRU 1000-INIT-PARA-EXIT
+           PERFORM 3000-PROC-PARA
+              THRU 3000-PROC-PARA-EXIT
+           PERFORM 9000-TERM-PARA
+           .
+       1000-INIT-PARA.
+           CONTINUE
+           .
+       1000-INIT-PARA-EXIT.
+           EXIT
+           .
+       3000-PROC-PARA.
+           PERFORM 3100-OPEN-PARA
+              THRU 3100-OPEN-PARA-EXIT.
+           PERFORM 3200-READ-PARA
+              THRU 3200-READ-PARA-EXIT
+              UNTIL WS-FST-EOPS.
+           PERFORM 3300-CLOSE-PARA
+              THRU 3300-CLOSE-PARA-EXIT
+              .
+       3000-PROC-PARA-EXIT.
+           EXIT
+           .
+       3100-OPEN-PARA.
+      *******OPENING FILE IN INPUT MODE*********************
+           OPEN INPUT TI001-PS
+           EVALUATE TRUE
+           WHEN WS-FST-SUCC
+             DISPLAY "TI001 OPENED."
+           WHEN OTHER
+             DISPLAY "TI001 OPEN FAILED."
+             DISPLAY WS-FST-TI001
+             PERFORM 9000-TERM-PARA
+           END-EVALUATE
+      *******OPENING FILE IN OUTPUT MODE*********************
+           OPEN OUTPUT TO001-PS
+           EVALUATE TRUE
+           WHEN WS-FST2-SUCC
+             DISPLAY "TO001 OPENED."
+           WHEN OTHER
+             DISPLAY "TO001 OPEN FAILED."
+             DISPLAY WS-FST-TO001
+           END-EVALUATE
+           .
+       3100-OPEN-PARA-EXIT.
+           EXIT
+           .
+       3200-READ-PARA.
+            INITIALIZE DCLLOAN-DB
+           MOVE SPACES TO TI001-PS-REC
+      *READING INPUT FILE
+           READ TI001-PS
+           EVALUATE TRUE
+           WHEN WS-FST-SUCC
+           MOVE TI001-APPL-ID TO HV-APPLICANT-ID
+           MOVE TI001-LOAN-ID TO HV-LOAN-ID
+             ADD 1 TO WS-COUNTER
+             PERFORM 3210-TBLE-EXTR-PARA
+                THRU 3210-TBLE-EXTR-PARA-EXIT
+           WHEN WS-FST-EOPS
+             DISPLAY "ALL RECORDS PROCESSED."
+             DISPLAY "TOT RECORDS: " WS-COUNTER
+           WHEN OTHER
+             DISPLAY "TI001 READ FAILED." WS-FST-TI001
+           END-EVALUATE.
+        3200-READ-PARA-EXIT.
+           EXIT
+           .
+        3210-TBLE-EXTR-PARA.
+      *******EXTRACTING RECORDS FROM TABLE****************
+            EXEC SQL
+             SELECT
+              APPLICANT_ID
+             ,NEXT_REPAYMENT_DUE_DATE
+             ,BALANCE_AMOUNT
+             ,LOAN_ID
+             ,LOAN_TYPE
+             ,MONTHLY_REPAYMENT_AMOUNT
+            INTO
+              :HV-APPLICANT-ID
+             ,:HV-NEXT-REPAYMENT-DUE-DATE
+             ,:HV-BALANCE-AMOUNT
+             ,:HV-LOAN-ID
+             ,:HV-LOAN-TYPE
+             ,:HV-MONTHLY-REPAYMENT-AMOUNT
+            FROM LOAN_DB
+            WHERE APPLICANT_ID = :HV-APPLICANT-ID AND
+                  LOAN_ID = :HV-LOAN-ID
+            END-EXEC
+           EVALUATE TRUE
+            WHEN SQLCODE = 000
+             DISPLAY 'AFTER RETRIVING FROM TABLE : ' HV-BALANCE-AMOUNT
+             DISPLAY 'RECORD EXTRACTED'
+            PERFORM 3211-CALC-PARA
+               THRU 3211-CALC-PARA-EXIT
+            WHEN SQLCODE = 100
+             DISPLAY 'RECORD NOT FOUND'
+              CALL 'DSNTIAR' USING SQLCA WS-ERR-MSG WS-LRECL
+            WHEN OTHER
+             DISPLAY 'RECORD NOT EXTRACTED' SQLCODE
+              CALL 'DSNTIAR' USING SQLCA WS-ERR-MSG WS-LRECL
+           END-EVALUATE.
+        3210-TBLE-EXTR-PARA-EXIT.
+           EXIT
+           .
+        3211-CALC-PARA.
+      *********************************************************
+      *              CALUCLATING DATE DIFFERENCE              *
+      *********************************************************
+           DISPLAY "TI001-PAID-DATE" TI001-PAID-DATE
+           MOVE TI001-PAID-DATE(1:4) TO WS-PS-DATES(1:4)
+           MOVE TI001-PAID-DATE(6:2) TO WS-PS-DATES(5:2)
+           MOVE TI001-PAID-DATE(9:2) TO WS-PS-DATES(7:2)
+           MOVE HV-NEXT-REPAYMENT-DUE-DATE(1:4) TO WS-DB-DATES(1:4)
+           MOVE HV-NEXT-REPAYMENT-DUE-DATE(6:2) TO WS-DB-DATES(5:2)
+           MOVE HV-NEXT-REPAYMENT-DUE-DATE(9:2) TO WS-DB-DATES(7:2)
+           COMPUTE WS-PS-DATE = FUNCTION INTEGER-OF-DATE (WS-PS-DATES)
+           COMPUTE WS-DB-DATE = FUNCTION INTEGER-OF-DATE (WS-DB-DATES)
+           COMPUTE WS-DATE-DIFF = (WS-DB-DATE)
+            - (WS-PS-DATE)
+      *      DISPLAY WS-DATE-DIFF
+             EVALUATE TRUE
+             WHEN WS-DATE-DIFF > 30
+             IF WS-DATE-DIFF > 37
+             PERFORM 3212-CALC2-PARA
+                THRU 3212-CALC2-PARA-EXIT
+             ELSE
+             DISPLAY 'PERFORM CSV WRITE PARA.'
+             END-IF
+             PERFORM 3213-CSV-PARA-WRITE
+                THRU 3213-CSV-PARA-WRITE-EXIT
+             WHEN OTHER
+             DISPLAY 'DIFF IS NOT GREATER'
+             END-EVALUATE.
+       3211-CALC-PARA-EXIT.
+           EXIT
+           .
+       3212-CALC2-PARA.
+      ************************************************************
+      *         PROVIDING 500 DISCOUNT                           *
+      *         UPDATING BALANCE AMOUNT                          *
+      ************************************************************
+           DISPLAY "BALANCE BEFORE:" HV-BALANCE-AMOUNT
+           EXEC SQL
+           UPDATE LOAN_DB
+           SET BALANCE_AMOUNT = BALANCE_AMOUNT - 500.00
+           WHERE APPLICANT_ID = :HV-APPLICANT-ID
+           END-EXEC
+           EVALUATE TRUE
+            WHEN SQLCODE = 0
+             DISPLAY 'BALANCE UPDATED:' HV-BALANCE-AMOUNT
+            WHEN OTHER
+             DISPLAY 'BALANCE NOT UPDATED' SQLCODE
+              CALL 'DSNTIAR' USING SQLCA WS-ERR-MSG WS-LRECL
+           END-EVALUATE.
+           DISPLAY HV-BALANCE-AMOUNT
+           .
+       3212-CALC2-PARA-EXIT.
+           EXIT
+           .
+       3213-CSV-PARA-WRITE.
+      **************************************************************
+      *          MOVING RECORDS INTO COMMA SEPARATED VALUE FILE    *
+      **************************************************************
+           MOVE SPACES TO TO001-PS-REC
+           MOVE FUNCTION CURRENT-DATE TO WS-CURR-DATE
+           MOVE WS-CURR-DATE(1:4) TO WS-CURR-YEAR
+           MOVE WS-CURR-DATE(5:2) TO WS-CURR-MONTH
+           MOVE WS-CURR-DATE(7:2) TO WS-CURR-DAY
+           MOVE WS-REP-DATE TO WS-RPRT-CRT-DT
+           DISPLAY WS-RPRT-CRT-DT
+           MOVE HV-APPLICANT-ID TO WS-APPLI-ID
+           MOVE HV-LOAN-ID TO WS-LOAN-ID
+           MOVE HV-LOAN-TYPE TO WS-LOAN-TYPE
+           MOVE HV-NEXT-REPAYMENT-DUE-DATE TO WS-DUE-DATE
+           MOVE HV-MONTHLY-REPAYMENT-AMOUNT TO WS-MN-REPAY-AMT
+           STRING WS-RPRT-CRT-DT DELIMITED BY SPACES
+                 ',' DELIMITED BY SIZE
+                  WS-APPLI-ID DELIMITED BY SPACES
+                 ',' DELIMITED BY SIZE
+                  WS-LOAN-ID DELIMITED BY SPACES
+                  ',' DELIMITED BY SIZE
+                  WS-LOAN-TYPE DELIMITED BY SPACES
+                  ',' DELIMITED BY SIZE
+                  WS-DUE-DATE DELIMITED BY SPACES
+                  ',' DELIMITED BY SIZE
+                  WS-MN-REPAY-AMT DELIMITED BY SPACES
+                  INTO TO001-PS-REC
+                  DISPLAY WS-FST-TO001
+           PERFORM 6100-CSV-WRITE-PARA
+              THRU 6100-CSV-WRITE-PARA-EXIT
+           .
+       3213-CSV-PARA-WRITE-EXIT.
+           EXIT
+           .
+       6100-CSV-WRITE-PARA.
+      ****************************************************************
+      *         WRITING RECORDS INTO COMMA SEPARATED VALUE FILE      *
+      ****************************************************************
+           WRITE TO001-PS-REC
+           EVALUATE TRUE
+           WHEN WS-FST-SUCC
+             DISPLAY "TO001 WRITTEN."
+           WHEN OTHER
+             DISPLAY "TO001 WRITTEN FAILED."
+             DISPLAY WS-FST-TO001
+           .
+       6100-CSV-WRITE-PARA-EXIT.
+           EXIT
+           .
+      *********CLOSING ALL THE FILES AND CURSOR*************
+       3300-CLOSE-PARA.
+           CLOSE TI001-PS
+           CLOSE TO001-PS
+           EXEC SQL
+           COMMIT
+           END-EXEC
+           .
+       3300-CLOSE-PARA-EXIT.
+           EXIT
+           .
+       9000-TERM-PARA.
+           STOP RUN.
+

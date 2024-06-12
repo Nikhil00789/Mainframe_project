@@ -1,0 +1,43 @@
+      ******************************************************************
+      * DCLGEN TABLE(PAY_DB)                                           *
+      *        LIBRARY(TECN165.FINAL.DB2.PDS(PAYDB))                   *
+      *        ACTION(REPLACE)                                         *
+      *        LANGUAGE(COBOL)                                         *
+      *        NAMES(HV-)                                              *
+      *        QUOTE                                                   *
+      *        COLSUFFIX(YES)                                          *
+      * ... IS THE DCLGEN COMMAND THAT MADE THE FOLLOWING STATEMENTS   *
+      ******************************************************************
+           EXEC SQL DECLARE PAY_DB TABLE
+           ( APPLICANT_ID                   CHAR(10),
+             LOAN_ID                        CHAR(2),
+             AMOUNT_PAID                    DECIMAL(9, 2),
+             AMOUNT_PAID_DATE               DATE,
+             PREVIOUS_BALANCE_AMOUNT        DECIMAL(9, 2),
+             CURRENT_BALANCE_AMOUNT         DECIMAL(9, 2),
+             COLLECTION                     CHAR(10)
+           ) END-EXEC.
+      ******************************************************************
+      * COBOL DECLARATION FOR TABLE PAY_DB                             *
+      ******************************************************************
+       01  DCLPAY-DB.
+      *                       APPLICANT_ID
+           10 HV-APPLICANT-ID      PIC X(10).
+      *                       LOAN_ID
+           10 HV-LOAN-ID           PIC X(2).
+      *                       AMOUNT_PAID
+           10 HV-AMOUNT-PAID       PIC S9(7)V9(2) USAGE COMP-3.
+      *                       AMOUNT_PAID_DATE
+           10 HV-AMOUNT-PAID-DATE  PIC X(10).
+      *                       PREVIOUS_BALANCE_AMOUNT
+           10 HV-PREVIOUS-BALANCE-AMOUNT
+              PIC S9(7)V9(2) USAGE COMP-3.
+      *                       CURRENT_BALANCE_AMOUNT
+           10 HV-CURRENT-BALANCE-AMOUNT
+              PIC S9(7)V9(2) USAGE COMP-3.
+      *                       COLLECTION
+           10 HV-COLLECTION        PIC X(10).
+      ******************************************************************
+      * THE NUMBER OF COLUMNS DESCRIBED BY THIS DECLARATION IS 7       *
+      ******************************************************************
+

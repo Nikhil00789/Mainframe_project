@@ -1,0 +1,139 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. APPDB.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT TI001-PS ASSIGN TO DD3
+           ORGANIZATION IS SEQUENTIAL
+           ACCESS IS SEQUENTIAL
+           FILE STATUS IS WS-FST-TI001.
+       DATA DIVISION.
+       FILE SECTION.
+       FD TI001-PS.
+       01 TI001-PS-REC.
+          05 TI001-APP-ID       PIC X(10).
+          05 F                  PIC X(1).
+          05 TI001-NAME         PIC A(32).
+          05 F                  PIC X(1).
+          05 TI001-DOOR-NO      PIC X(10).
+          05 F                  PIC X(1).
+          05 TI001-STREET       PIC A(20).
+          05 F                  PIC X(1).
+          05 TI001-CITY         PIC A(20).
+          05 F                  PIC X(1).
+          05 TI001-STATE        PIC A(20).
+          05 F                  PIC X(1).
+          05 TI001-PIN          PIC 9(06).
+          05 F                  PIC X(1).
+          05 TI001-PHONE-NO     PIC X(10).
+          05 F                  PIC X(45).
+       WORKING-STORAGE SECTION.
+       01 WS-VAR.
+          05 WS-FST-TI001 PIC 9(02) VALUE 0.
+          05 WS-COUNTER      PIC 9(02) VALUE 0.
+           EXEC SQL
+           INCLUDE SQLCA
+           END-EXEC.
+           EXEC SQL
+           INCLUDE APPDB
+           END-EXEC
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+           PERFORM 1000-INIT-PARA
+              THRU 1000-INIT-PARA-EXIT
+           PERFORM 3000-PROC-PARA
+              THRU 3000-PROC-PARA-EXIT
+           PERFORM 9000-TERM-PARA
+              THRU 9000-TERM-PARA-EXIT
+                  .
+       1000-INIT-PARA.
+            CONTINUE.
+       1000-INIT-PARA-EXIT.
+            EXIT.
+       3000-PROC-PARA.
+           PERFORM 3100-OPEN-PARA
+              THRU 3100-OPEN-PARA-EXIT
+           PERFORM 3200-READ-PARA
+              THRU 3200-READ-PARA-EXIT
+              UNTIL WS-FST-TI001 = 10
+           PERFORM 3300-CLOSE-PARA
+              THRU 3300-CLOSE-PARA-EXIT
+           .
+       3000-PROC-PARA-EXIT.
+           EXIT.
+       9000-TERM-PARA.
+           STOP RUN.
+       9000-TERM-PARA-EXIT.
+           EXIT.
+       3100-OPEN-PARA.
+      *PRE-DELETE STEP FOR DELETING RECORDS FROM TABLE
+            EXEC SQL DELETE FROM APP_DB END-EXEC
+           OPEN INPUT TI001-PS
+           EVALUATE TRUE
+           WHEN WS-FST-TI001 = 0
+           DISPLAY "OPENED"
+           WHEN OTHER
+           DISPLAY "FAILED" WS-FST-TI001
+           PERFORM 9000-TERM-PARA
+           END-EVALUATE
+           .
+       3100-OPEN-PARA-EXIT.
+           EXIT.
+       3200-READ-PARA.
+           READ TI001-PS
+           EVALUATE TRUE
+           WHEN WS-FST-TI001 = 0
+           ADD 1 TO WS-COUNTER
+           DISPLAY "READ SUCESSFUL"
+           PERFORM 3210-MOV-PARA THRU 3210-MOV-PARA-EXIT
+           WHEN WS-FST-TI001 = 10
+           DISPLAY "EOF"
+           WHEN OTHER
+           DISPLAY "FAILED" WS-FST-TI001
+           END-EVALUATE.
+       3200-READ-PARA-EXIT.
+           EXIT.
+       3210-MOV-PARA.
+           MOVE TI001-APP-ID     TO HV-APPLICANT-ID
+           MOVE TI001-NAME TO HV-APPLICANT-NAME-TEXT
+           MOVE LENGTH OF HV-APPLICANT-NAME-TEXT TO
+                        HV-APPLICANT-NAME-LEN
+           MOVE TI001-DOOR-NO    TO HV-DOOR-NO
+           MOVE TI001-STREET     TO HV-STREET
+           MOVE TI001-CITY       TO HV-CITY
+           MOVE TI001-STATE      TO HV-STATE
+           MOVE TI001-PIN        TO HV-PIN
+           MOVE TI001-PHONE-NO   TO HV-CELL-PHONE-NO
+           EXEC SQL
+           INSERT INTO APP_DB
+           VALUES (
+             :HV-APPLICANT-ID
+            ,:HV-APPLICANT-NAME
+            ,:HV-DOOR-NO
+            ,:HV-STREET
+            ,:HV-CITY
+            ,:HV-STATE
+            ,:HV-PIN
+            ,:HV-CELL-PHONE-NO
+            )
+            END-EXEC.
+            EVALUATE TRUE
+            WHEN SQLCODE = 0
+            DISPLAY "INSERT"
+            WHEN OTHER
+            DISPLAY "FAILED" SQLCODE
+            END-EVALUATE
+            .
+       3210-MOV-PARA-EXIT.
+           EXIT.
+       3300-CLOSE-PARA.
+           CLOSE TI001-PS
+           EVALUATE TRUE
+           WHEN WS-FST-TI001 = 0
+           DISPLAY "CLOSED"
+           WHEN OTHER
+           DISPLAY "FAILED" WS-FST-TI001
+           END-EVALUATE.
+       3300-CLOSE-PARA-EXIT.
+           EXIT.
+

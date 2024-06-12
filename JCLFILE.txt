@@ -1,0 +1,44 @@
+//TECN165S JOB NOTIFY=&SYSUID,RESTART=STEP02
+//*****************************************************
+//*              GDG CREATION FOR BACKUP              *
+//*****************************************************
+//STEP01   EXEC PGM=IDCAMS
+//SYSPRINT DD SYSOUT=*
+//SYSOUT   DD SYSOUT=*
+//SYSIN    DD *
+  DEFINE GDG (                     -
+  NAME (TECN165.FINAL.REPORT.GDG)  -
+  LIMIT(4)                         -
+  NOEMPTY                          -
+  SCRATCH                          -
+  )
+/*
+//*****************************************************
+//*              SORTING IN ASCENDING ORDER           *
+//*****************************************************
+//STEP02   EXEC PGM=SORT
+//SYSPRINT DD SYSOUT=*
+//SYSOUT   DD SYSOUT=*
+//SORTIN   DD DSN=TECN165.FINAL.CSV.PS1,DISP=SHR
+//SORTOUT  DD DSN=TECN165.FINAL.REP.PS,DISP=SHR
+//*        DISP=(NEW,CATLG,DELETE),
+//*        SPACE=(TRK,(1,1)),
+//*        DCB=(LRECL=80,BLKSIZE=800,RECFM=FB,DSORG=PS)
+//SYSIN    DD *
+  SORT FIELDS=(1,10,CH,A)
+/*
+//*****************************************************
+//*              TAKING BACKUP                        *
+//*****************************************************
+//STEP03   EXEC PGM=IDCAMS
+//SYSPRINT DD SYSOUT=*
+//SYSOUT   DD SYSOUT=*
+//DD1      DD DSN=TECN165.FINAL.REP.PS,DISP=SHR
+//DD2      DD DSN=TECN165.FINAL.REPORT.GDG(+1),
+//         DISP=(NEW,CATLG,DELETE),
+//         DCB=(LRECL=80,RECFM=FB,BLKSIZE=800),
+//         SPACE=(CYL,(3,3))
+//SYSIN    DD *
+  REPRO INFILE(DD1) OUTFILE(DD2)
+/*
+
